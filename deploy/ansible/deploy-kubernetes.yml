@@ -1,0 +1,41 @@
+---
+# Deploys (or updates) JPetStore on Kubernetes with zero downtime.
+# Applies every manifest in deploy/kubernetes/ with the image placeholder replaced,
+# and waits until the Deployment rollout is complete (all replicas updated and available).
+#
+#   ansible-playbook deploy-kubernetes.yml -e image_repository=<DOCKERHUB_NAMESPACE>/jpetstore -e image_tag=1.0.0
+- name: Deploy JPetStore to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    image_reference: "{{ image_repository }}:{{ image_tag }}"
+
+  tasks:
+    - name: Refuse to deploy an unconfigured image
+      ansible.builtin.assert:
+        that: "'<' not in image_reference"
+        fail_msg: Pass -e image_repository=<namespace>/jpetstore -e image_tag=<tag>
+        quiet: true
+
+    - name: Find the manifests
+      ansible.builtin.find:
+        paths: "{{ k8s_manifest_dir }}"
+        patterns: ["*.yaml", "*.yml"]
+      register: manifests
+
+    - name: Apply the manifests in order and wait for the rollout
+      kubernetes.core.k8s:
+        kubeconfig: "{{ k8s_kubeconfig }}"
+        state: present
+        apply: true
+        wait: true
+        wait_timeout: "{{ k8s_rollout_timeout }}"
+        definition: >-
+          {{ lookup('ansible.builtin.file', item.path)
+             | replace(k8s_image_placeholder, image_reference)
+             | ansible.builtin.from_yaml_all | list }}
+      loop: "{{ manifests.files | sort(attribute='path') }}"
+      loop_control:
+        label: "{{ item.path | basename }}"

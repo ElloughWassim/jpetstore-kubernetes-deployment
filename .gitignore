@@ -10,3 +10,7 @@
 *.properties
 .env
 .github/keys/
+
+# --- DevOps layer (jpetstore-kubernetes-deployment) ---
+/reports
+/.k8s-rendered

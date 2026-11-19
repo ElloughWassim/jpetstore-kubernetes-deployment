@@ -1,0 +1,42 @@
+---
+# Builds the production image and pushes it to the registry.
+#
+#   export REGISTRY_USERNAME=... REGISTRY_PASSWORD=...
+#   ansible-playbook build-and-push.yml -e image_repository=<DOCKERHUB_NAMESPACE>/jpetstore -e image_tag=1.0.0
+- name: Build and push the JPetStore image
+  hosts: build
+  gather_facts: false
+
+  tasks:
+    - name: Check that registry credentials are provided
+      ansible.builtin.assert:
+        that:
+          - registry_username | length > 0
+          - registry_password | length > 0
+          - "'<' not in image_repository"
+        fail_msg: Set REGISTRY_USERNAME / REGISTRY_PASSWORD and pass -e image_repository=<namespace>/jpetstore
+        quiet: true
+
+    - name: Log in to the registry
+      community.docker.docker_login:
+        registry_url: "{{ registry_url }}"
+        username: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+      no_log: true
+
+    - name: Build and push the image
+      community.docker.docker_image:
+        name: "{{ image_repository }}"
+        tag: "{{ image_tag }}"
+        source: build
+        build:
+          path: "{{ project_root }}"
+          dockerfile: deploy/docker/Dockerfile
+          pull: true
+        push: true
+        force_source: true
+
+    - name: Log out from the registry
+      community.docker.docker_login:
+        registry_url: "{{ registry_url }}"
+        state: absent

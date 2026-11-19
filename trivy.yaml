@@ -1,0 +1,8 @@
+# Trivy configuration (DevOps layer). Loaded automatically from the repository root.
+scan:
+  # The root Dockerfile and docker-compose.yaml are the upstream MyBatis *development* setup
+  # (runs Maven + Cargo as root inside the container). They are not deployed; the production
+  # image is deploy/docker/Dockerfile, which is scanned.
+  skip-files:
+    - Dockerfile
+    - docker-compose.yaml

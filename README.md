@@ -1,79 +1,188 @@
-MyBatis JPetStore
-=================
+# JPetStore 6 on Kubernetes with Jenkins, Docker and Ansible
 
-[![Java CI](https://github.com/mybatis/jpetstore-6/actions/workflows/ci.yaml/badge.svg)](https://github.com/mybatis/jpetstore-6/actions/workflows/ci.yaml)
-[![Container Support](https://github.com/mybatis/jpetstore-6/actions/workflows/support.yaml/badge.svg)](https://github.com/mybatis/jpetstore-6/actions/workflows/support.yaml)
-[![Coverage Status](https://coveralls.io/repos/github/mybatis/jpetstore-6/badge.svg?branch=master)](https://coveralls.io/github/mybatis/jpetstore-6?branch=master)
-[![Docs](https://img.shields.io/badge/docs-mybatis.org-blue?logo=github)](https://mybatis.org/jpetstore-6/)
-[![License](https://img.shields.io/:license-apache-brightgreen.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
+[![DevOps](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/devops.yml/badge.svg)](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/devops.yml)
+[![Java CI](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/ci.yaml/badge.svg)](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/ci.yaml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-![mybatis-jpetstore](https://mybatis.org/images/mybatis-logo.png)
+A production-style delivery pipeline for **MyBatis JPetStore 6**, the classic Java web shop sample. The
+application is the unmodified upstream project. This repository adds a container image, hardened Kubernetes
+manifests, Ansible playbooks and a Jenkins DevSecOps pipeline around it.
 
-JPetStore 6 is a full web application built on top of MyBatis 3, Spring 5 and Stripes.
+> **Original work.** JPetStore 6 is developed by the [MyBatis team](https://github.com/mybatis/jpetstore-6)
+> under the Apache License 2.0. Its complete Git history is preserved here. The upstream README is kept as
+> [`README.upstream.md`](README.upstream.md).
 
-## Other versions that you may want to know about
+## Project overview
 
-- JPetstore on top of Spring, Spring MVC, MyBatis 3, and Spring Security https://github.com/making/spring-jpetstore
-- JPetstore with Vaadin and Spring Boot with Java Config https://github.com/igor-baiborodine/jpetstore-6-vaadin-spring-boot
-- JPetstore on MyBatis Spring Boot Starter https://github.com/kazuki43zoo/mybatis-spring-boot-jpetstore
+| | Upstream MyBatis JPetStore 6 | What this fork adds (ElloughWassim) |
+|---|---|---|
+| Code | `src/`, `pom.xml`, Maven Wrapper, upstream workflows, root `Dockerfile` / `docker-compose.yaml` (dev setup) | nothing changed |
+| Container | | `deploy/docker/Dockerfile`: multi-stage, Tomcat 9 + JRE 21, non-root, exploded WAR, health check |
+| Kubernetes | | `deploy/kubernetes/`: restricted Pod Security, read-only root filesystem, probes, resources |
+| Automation | | `deploy/ansible/`: idempotent build/push and deploy playbooks |
+| CI/CD | | `Jenkinsfile` (via [jenkins-pipeline-library](https://github.com/ElloughWassim/jenkins-pipeline-library)), `.github/workflows/devops.yml` |
+| Security | | Trivy (fs, IaC, image), OWASP Dependency-Check, SonarQube gate, gitleaks |
+| Docs | | this README, `NOTICE` addition |
 
-## Run on Application Server
-Running JPetStore sample under Tomcat (using the [cargo-maven2-plugin](https://codehaus-cargo.github.io/cargo/Maven2+plugin.html)).
+## Main features
 
-- Clone this repository
+- Unit tests and the upstream Selenide/HtmlUnit screen-transition tests on Tomcat 9 run in the pipeline.
+- Immutable image tags (`<build>-<git sha>`) pushed to **Docker Hub or Amazon ECR**.
+- Security gates (SonarQube, OWASP Dependency-Check CVSS ≥ 7, Trivy HIGH/CRITICAL) that fail the build.
+- Zero-downtime deployment with automatic rollback, from Jenkins or Ansible.
 
-  ```
-  $ git clone https://github.com/mybatis/jpetstore-6.git
-  ```
+## Technologies and tools
 
-- Build war file
+Java 21 (build) / Java 11 bytecode · MyBatis 3 · Spring 5 · Tomcat 9 · Maven · HSQLDB (in-memory) · Docker ·
+Kubernetes · Ansible (`community.docker`, `kubernetes.core`) · Jenkins · SonarQube · OWASP Dependency-Check ·
+Trivy · GitHub Actions
 
-  ```
-  $ cd jpetstore-6
-  $ ./mvnw clean package
-  ```
+## Architecture overview
 
-- Startup the Tomcat server and deploy web application
-
-  ```
-  $ ./mvnw cargo:run -P tomcat9
-  ```
-
-  > Note:
-  >
-  > We provide maven profiles per application server as follow:
-  >
-  > | Profile             | Description                         |
-  > | ------------------- | ----------------------------------- |
-  > | tomcat9 (preferred) | Running under the Tomcat 9.0        |
-  > | glassfish5          | Running under the GlassFish 5       |
-  > | jetty12-ee8         | Running under the Jetty 12          |
-  > | liberty26-ee8       | Running under the WebSphere Liberty |
-  > | payara5             | Running under the Payara 5          |
-  > | resin4              | Running under the Resin 4           |
-  > | tomee8              | Running under the TomEE 8.0         |
-  > | wildfly26           | Running under the WildFly 26        |
-
-- Run application in browser http://localhost:8080/jpetstore/
-- Press Ctrl-C to stop the server.
-
-- When using 'glassfish5', it must run under java 8 as it does not work with newer versions.  The code is set to 'D:/jdk/jdk-1.8.0.501'.  Your usage likely differs, so simply call with '-Dcargo.java.home=PATH-TO-JDK8'.
-- When using 'payara', the full maven buil must run under java 17, this is unlike glassfish5 due to how it connects with cargo.  In that case, use '-Denforcer.skip=true' to accomplish.
-
-## Run on Docker
-```
-docker build . -t jpetstore
-docker run -p 8080:8080 jpetstore
-```
-or with Docker Compose:
-```
-docker compose up -d
+```mermaid
+flowchart LR
+    GH[GitHub] --> J[Jenkins pipeline<br/>jenkins-pipeline-library]
+    J --> T1[Unit + Cargo/Tomcat 9 integration tests]
+    J --> S[SonarQube gate]
+    J --> O[OWASP Dependency-Check]
+    J --> TR[Trivy fs / image]
+    J --> R[(Docker Hub / ECR)]
+    J -->|render image, kubectl apply, rollout| K[Kubernetes<br/>namespace jpetstore]
+    A[Ansible playbooks] -. alternative .-> R
+    A -. alternative .-> K
+    K --> SVC[Service LoadBalancer :80] --> U[Browser /jpetstore/]
 ```
 
-## Try integration tests
+Runtime: one Tomcat 9 pod serving the exploded WAR at `/jpetstore/`, with an in-memory HSQLDB initialised at
+startup (upstream design).
 
-Perform integration tests for screen transition.
+## Repository structure
 
 ```
-$ ./mvnw clean verify -P tomcat9
+.
+├── src/ pom.xml mvnw .mvn/          # Upstream application (unchanged)
+├── Dockerfile docker-compose.yaml   # Upstream development container (unchanged)
+├── README.upstream.md               # Upstream README
+├── deploy/                          # ← DevOps layer
+│   ├── docker/Dockerfile            # Production image
+│   ├── kubernetes/                  # 00-namespace, 20-deployment, 30-service
+│   └── ansible/                     # build-and-push.yml, deploy-kubernetes.yml, group_vars, inventory example
+├── Jenkinsfile                      # ← CI/CD pipeline
+├── trivy.yaml .trivyignore          # ← Trivy scope and documented exception
+└── .github/workflows/
+    ├── devops.yml                   # ← image smoke test, Trivy, kubeconform, ansible-lint, gitleaks
+    └── ci.yaml, codeql.yaml, …      # upstream workflows (org-gated ones stay inactive here)
 ```
+
+## Prerequisites
+
+| For | You need |
+|---|---|
+| Build and tests | JDK 21 (Maven is provided by the wrapper) |
+| Image | Docker 24+ with BuildKit |
+| Deployment | A Kubernetes cluster (EKS, Minikube, kind…) and `kubectl` |
+| Ansible path | Python 3, `pip install ansible` (includes `community.docker` and `kubernetes.core`), plus `pip install kubernetes` |
+| Pipeline | Jenkins with the plugins listed below |
+
+## Installation
+
+```bash
+git clone https://github.com/ElloughWassim/jpetstore-kubernetes-deployment.git
+cd jpetstore-kubernetes-deployment
+./mvnw -B package -Dlicense.skip=true
+```
+
+`-Dlicense.skip=true` disables the upstream license-header formatter, which would otherwise add headers to
+files during the build. The upstream CI uses the same flag.
+
+## Configuration
+
+| Where | What to set |
+|---|---|
+| `Jenkinsfile` `environment` | `DOCKERHUB_NAMESPACE`, `AWS_ACCOUNT_ID`, `AWS_REGION` |
+| `deploy/ansible/group_vars/all.yml` | defaults only; pass `-e image_repository=… -e image_tag=…` |
+| Environment (Ansible) | `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` (Docker Hub access token), optional `KUBECONFIG` |
+| `deploy/kubernetes/30-service.yaml` | `type: LoadBalancer` (cloud) or `NodePort` (local clusters) |
+
+## How to run the project
+
+```bash
+# Upstream way: Tomcat started by Cargo
+./mvnw cargo:run -P tomcat9 -Dlicense.skip=true          # http://localhost:8080/jpetstore/
+
+# Production image
+docker build -f deploy/docker/Dockerfile -t jpetstore .
+docker run --rm -p 8080:8080 jpetstore                   # http://localhost:8080/jpetstore/
+
+# Kubernetes (manually)
+sed 's|IMAGE_PLACEHOLDER|<registry>/jpetstore:<tag>|' deploy/kubernetes/20-deployment.yaml > /tmp/jpetstore.yaml
+kubectl apply -f deploy/kubernetes/00-namespace.yaml -f /tmp/jpetstore.yaml -f deploy/kubernetes/30-service.yaml
+kubectl -n jpetstore rollout status deployment/jpetstore
+
+# Kubernetes (Ansible)
+cd deploy/ansible && cp inventory/hosts.example.ini inventory/hosts.ini
+export REGISTRY_USERNAME=<user> REGISTRY_PASSWORD=<token>
+ansible-playbook build-and-push.yml   -e image_repository=<user>/jpetstore -e image_tag=1.0.0
+ansible-playbook deploy-kubernetes.yml -e image_repository=<user>/jpetstore -e image_tag=1.0.0
+```
+
+## How to execute tests
+
+```bash
+./mvnw test -Dlicense.skip=true                     # unit tests
+./mvnw verify -P tomcat9 -Dlicense.skip=true        # + screen-transition integration tests on Tomcat 9
+```
+
+## CI/CD pipeline
+
+**Jenkins (`Jenkinsfile`):** Unit tests → Integration tests (Cargo + Tomcat 9) → SonarQube → Quality gate →
+OWASP Dependency-Check → Trivy fs → Docker build → Trivy image → Push → Deploy to Kubernetes
+(render image, apply, rollout status, automatic rollback).
+
+- **Parameters:** `REGISTRY` (`dockerhub` | `ecr`), `DEPLOY`.
+- **Plugins:** Pipeline, Git, Credentials Binding, SonarQube Scanner, OWASP Dependency-Check, JUnit, Timestamper,
+  and Pipeline: AWS Steps for ECR.
+- **Agent tools:** JDK 21, Docker, Trivy, kubectl, plus the AWS CLI for ECR.
+- **Credentials:** `dockerhub-credentials` (username + token), `aws-credentials` (ECR), `kubeconfig` (secret file),
+  `nvd-api-key` (secret text).
+- **SonarQube** server named `sonarqube` with a webhook to `<JENKINS_URL>/sonarqube-webhook/`.
+  **Dependency-Check** tool named `dependency-check`.
+
+**GitHub Actions:**
+- `devops.yml` builds the production image, smoke-tests `/jpetstore/catalog`, runs the Trivy image and fs/IaC
+  scans, kubeconform and ansible-lint, and scans the full history with gitleaks.
+- The upstream `ci.yaml`, `support.yaml` and `codeql.yaml` keep running. The upstream `coveralls`, `sonar`,
+  `sonatype` and `site` workflows only run in the `mybatis` organisation.
+
+## Security considerations
+
+- Production image: no build tools, non-root UID 10001, Tomcat default apps removed, `webapps/` read-only.
+- Pod: `restricted` Pod Security Standard, no privilege escalation, all capabilities dropped, read-only root
+  filesystem (only `work/`, `temp/` and `logs/` are writable `emptyDir` volumes), `RuntimeDefault` seccomp,
+  no service-account token.
+- Registry credentials come from Jenkins credentials or environment variables, and the Ansible login task is
+  `no_log`. Nothing secret is stored in the repository. History was scanned with gitleaks: no findings.
+- **Known upstream risk:** JPetStore 6 uses Spring Framework 5.3, whose open-source support has ended. Scanners
+  may report CVEs that are only fixed in Spring 6 or in commercial 5.3 releases. Changing that is an
+  application migration (javax → jakarta), so it is out of scope for this DevOps layer.
+- `trivy.yaml` excludes only the upstream development `Dockerfile`/`docker-compose.yaml` (run as root, not
+  deployed). `.trivyignore` documents the image-placeholder exception.
+
+## Known limitations
+
+- The in-memory HSQLDB and HTTP sessions are per pod, so the Deployment runs a single replica. Scaling out would
+  need an external database and sticky sessions or session replication.
+
+## License and attribution
+
+- **JPetStore 6:** Copyright 2010-2026 the MyBatis team and contributors, [Apache License 2.0](LICENSE).
+  See [`NOTICE`](NOTICE) for third-party notices.
+- **DevOps layer** (files listed above): Copyright 2026 ElloughWassim, also Apache License 2.0, as recorded in `NOTICE`.
+- The idea of adding Ansible playbooks and a Kubernetes manifest came from
+  [`Aj7Ay/jpetstore-6`](https://github.com/Aj7Ay/jpetstore-6) (a DevSecOps tutorial fork by Aj7Ay).
+  This repository is based directly on the current upstream instead, and its DevOps files were written from scratch.
+
+## Maintainer
+
+DevOps layer maintained by **ElloughWassim**, [github.com/ElloughWassim](https://github.com/ElloughWassim).
+Application issues belong upstream at [mybatis/jpetstore-6](https://github.com/mybatis/jpetstore-6).

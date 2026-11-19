@@ -53,3 +53,14 @@ OGNL
 //  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 //  DAMAGE.
 //--------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+jpetstore-kubernetes-deployment
+Copyright 2026 ElloughWassim
+
+This distribution is based on MyBatis JPetStore 6 (https://github.com/mybatis/jpetstore-6),
+unchanged except for the DevOps layer listed in README.md ("What this fork adds"):
+deploy/, Jenkinsfile, trivy.yaml, .trivyignore, .groovylintrc.json,
+.github/workflows/devops.yml, README.md (the upstream README is kept as README.upstream.md),
+and additions to .gitignore and this NOTICE file. The DevOps layer is licensed under the
+Apache License, Version 2.0, like the rest of the project.

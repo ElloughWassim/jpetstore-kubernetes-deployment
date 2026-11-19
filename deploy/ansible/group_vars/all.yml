@@ -1,0 +1,23 @@
+---
+# Path of the repository root, relative to this directory.
+project_root: "{{ playbook_dir }}/../.."
+
+# Image coordinates. Override on the command line, for example:
+#   -e image_repository=<DOCKERHUB_NAMESPACE>/jpetstore -e image_tag=42-abc1234
+image_repository: "<DOCKERHUB_NAMESPACE>/jpetstore"
+image_tag: "latest"
+
+# Registry credentials are read from the environment, never stored in files:
+#   export REGISTRY_USERNAME=<user>  REGISTRY_PASSWORD=<access token>
+registry_url: "https://index.docker.io/v1/"
+registry_username: "{{ lookup('ansible.builtin.env', 'REGISTRY_USERNAME') }}"
+registry_password: "{{ lookup('ansible.builtin.env', 'REGISTRY_PASSWORD') }}"
+
+# Kubernetes
+k8s_namespace: jpetstore
+k8s_deployment: jpetstore
+k8s_manifest_dir: "{{ project_root }}/deploy/kubernetes"
+k8s_image_placeholder: IMAGE_PLACEHOLDER
+# Empty = default kubeconfig resolution (KUBECONFIG or ~/.kube/config).
+k8s_kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default(omit, true) }}"
+k8s_rollout_timeout: 300

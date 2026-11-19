@@ -1,0 +1,75 @@
+# DevOps layer checks (added by ElloughWassim; the upstream MyBatis workflows are unchanged).
+name: DevOps
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Production image, smoke test and Trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build production image
+        run: docker build -f deploy/docker/Dockerfile -t jpetstore:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name jpetstore -p 8080:8080 jpetstore:ci
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:8080/jpetstore/; then break; fi
+            sleep 2
+          done
+          curl -fsSL http://localhost:8080/jpetstore/catalog | grep -qi 'categoryId=FISH'
+          docker logs jpetstore | tail -20
+          docker rm -f jpetstore
+      - name: Trivy image scan (fail on fixable HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: jpetstore:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Trivy filesystem and IaC scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          trivy-config: trivy.yaml
+          trivyignores: .trivyignore
+          exit-code: '1'
+
+  manifests:
+    name: Kubernetes and Ansible validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary deploy/kubernetes/
+      - name: ansible-lint
+        run: |
+          pip install --quiet ansible ansible-lint
+          cd deploy/ansible
+          cp inventory/hosts.example.ini inventory/hosts.ini
+          ansible-playbook --syntax-check build-and-push.yml deploy-kubernetes.yml
+          ansible-lint --offline build-and-push.yml deploy-kubernetes.yml
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

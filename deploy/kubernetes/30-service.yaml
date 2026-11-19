@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jpetstore
+  namespace: jpetstore
+  labels:
+    app.kubernetes.io/name: jpetstore
+spec:
+  # LoadBalancer on cloud clusters; use NodePort/port-forward on Minikube or kind.
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: jpetstore
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

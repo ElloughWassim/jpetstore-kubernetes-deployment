@@ -1,0 +1,3 @@
+# KSV-0013: deploy/kubernetes/20-deployment.yaml uses IMAGE_PLACEHOLDER on purpose.
+# Jenkins (kubernetesDeploy) and Ansible replace it with an immutable <build>-<sha> tag before applying.
+KSV-0013
