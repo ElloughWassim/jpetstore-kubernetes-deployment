@@ -1,16 +1,13 @@
-# JPetStore 6 on Kubernetes with Jenkins, Docker and Ansible
+# JPetStore  on Kubernetes with Jenkins, Docker and Ansible
 
 [![DevOps](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/devops.yml/badge.svg)](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/devops.yml)
 [![Java CI](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/ci.yaml/badge.svg)](https://github.com/ElloughWassim/jpetstore-kubernetes-deployment/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-A production-style delivery pipeline for **MyBatis JPetStore 6**, the classic Java web shop sample. The
+A production-style delivery pipeline for **MyBatis JPetStore , the classic Java web shop sample. The
 application is the unmodified upstream project. This repository adds a container image, hardened Kubernetes
 manifests, Ansible playbooks and a Jenkins DevSecOps pipeline around it.
 
-> **Original work.** JPetStore 6 is developed by the [MyBatis team](https://github.com/mybatis/jpetstore-6)
-> under the Apache License 2.0. Its complete Git history is preserved here. The upstream README is kept as
-> [`README.upstream.md`](README.upstream.md).
 
 ## Project overview
 
@@ -173,14 +170,6 @@ OWASP Dependency-Check → Trivy fs → Docker build → Trivy image → Push �
 - The in-memory HSQLDB and HTTP sessions are per pod, so the Deployment runs a single replica. Scaling out would
   need an external database and sticky sessions or session replication.
 
-## License and attribution
-
-- **JPetStore 6:** Copyright 2010-2026 the MyBatis team and contributors, [Apache License 2.0](LICENSE).
-  See [`NOTICE`](NOTICE) for third-party notices.
-- **DevOps layer** (files listed above): Copyright 2026 ElloughWassim, also Apache License 2.0, as recorded in `NOTICE`.
-- The idea of adding Ansible playbooks and a Kubernetes manifest came from
-  [`Aj7Ay/jpetstore-6`](https://github.com/Aj7Ay/jpetstore-6) (a DevSecOps tutorial fork by Aj7Ay).
-  This repository is based directly on the current upstream instead, and its DevOps files were written from scratch.
 
 ## Maintainer
 
